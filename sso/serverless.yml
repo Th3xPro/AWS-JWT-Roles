@@ -1,0 +1,86 @@
+service: sso
+frameworkVersion: "1"
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: ${opt:stage, "dev"}
+  region: us-east-1
+  profile: serverlessUser
+
+  environment:
+    USER_TABLE: ${self:custom.userTable}
+    JWT_SECRET: ${self:custom.secrets.JWT_SECRET}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - "dynamodb:Query"
+        - "dynamodb:PutItem"
+      Resource:
+        - arn:aws:dynamodb:*:*:table/${self:custom.userTable}
+        - arn:aws:dynamodb:*:*:table/${self:custom.userTable}/index/pk
+package:
+  excludeDevDependencies: false
+  exclude:
+    - resources/**
+    - test/**
+    - .*
+    - .*/**
+    - package-lock.json
+    - node_modules/**/aws-sdk/**
+
+functions:
+  validate:
+    handler: src/validate.validate
+  loginUser:
+    handler: src/login.login
+    events:
+      - http:
+          method: post
+          cors: true
+          path: /user/login
+          request:
+            schema:
+              application/json: ${file(schema/login_request.json)}
+  createUser:
+    handler: src/createUser.createUser
+    events:
+      - http:
+          method: post
+          cors: true
+          path: /user
+          request:
+            schema:
+              application/json: ${file(schema/create_user_request.json)}
+
+custom:
+  userTable: User-Table-${self:provider.stage}
+  secrets: ${file(../secrets.json)}
+
+resources:
+  Resources:
+    userTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.userTable}
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+  Outputs:
+    RestApiId:
+      Value:
+        Ref: ApiGatewayRestApi
+      Export:
+        Name: role-jwt-${self:provider.stage}-RestApiId
+
+    RestApiRootResourceId:
+      Value:
+        Fn::GetAtt:
+          - ApiGatewayRestApi
+          - RootResourceId
+      Export:
+        Name: role-jwt-${self:provider.stage}-RestApiRootResourceId

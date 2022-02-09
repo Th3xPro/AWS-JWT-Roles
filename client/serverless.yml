@@ -1,0 +1,49 @@
+service: client
+frameworkVersion: "1"
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: ${opt:stage, "dev"}
+  region: us-east-1
+  profile: serverlessUser
+  environment:
+    JWT_SECRET: ${self:custom.secrets.JWT_SECRET}
+  apiGateway:
+    restApiId:
+      Fn::ImportValue: role-jwt-${self:provider.stage}-RestApiId
+    restApiRootResourceId:
+      Fn::ImportValue: role-jwt-${self:provider.stage}-RestApiRootResourceId
+package:
+  excludeDevDependencies: false
+  exclude:
+    - resources/**
+    - test/**
+    - .*
+    - .*/**
+    - package-lock.json
+    - node_modules/**/aws-sdk/**
+custom:
+  secrets: ${file(../secrets.json)}
+functions:
+  validate:
+    handler: src/validate.validate
+  userHello:
+    handler: src/userHello.handler
+    events:
+      - http:
+          method: get
+          cors: true
+          path: /helloUser
+          authorizer: validate
+  adminHello:
+    handler: src/adminHello.handler
+    events:
+      - http:
+          method: get
+          cors: true
+          path: /helloAdmin
+          authorizer: validate
+
+resources:
+  Description: "Role-JWT-Client-Core"
