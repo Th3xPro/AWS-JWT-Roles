@@ -1,10 +1,10 @@
 const jwt = require("jsonwebtoken");
 module.exports.validate = async (event, context) => {
+  //Getting token
   const authorizerToken = event.authorizationToken;
   const authorizerArr = authorizerToken.split(" ");
   const token = authorizerArr[1];
-  //   const token = event.authorizationToken.replace("Bearer ", "");
-  //   const methodArn = event.methodArn;
+
   if (
     authorizerArr.length !== 2 ||
     authorizerArr[0] !== "Bearer" ||
@@ -12,6 +12,8 @@ module.exports.validate = async (event, context) => {
   ) {
     return generatePolicy("undefined", "Deny", event.methodArn);
   }
+
+  //Verifying token
   let decodedJwt = jwt.verify(token, process.env.JWT_SECRET);
   if (
     typeof decodedJwt.username !== "undefined" &&
