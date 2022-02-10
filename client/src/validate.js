@@ -16,13 +16,19 @@ module.exports.validate = async (event, context) => {
 
   //Verifying token
   let decodedJwt = jwt.verify(token, process.env.JWT_SECRET);
+
   if (
     typeof decodedJwt.username !== "undefined" &&
     decodedJwt.username.length > 0
   ) {
-    return generatePolicy(decodedJwt.username, "Allow", event.methodArn);
+    if (event.methodArn.includes("Admin") && decodedJwt.role === "admin") {
+      return generatePolicy(decodedJwt.username, "Allow", event.methodArn);
+    }
+    if (event.methodArn.includes("User")) {
+      return generatePolicy(decodedJwt.username, "Allow", event.methodArn);
+    }
   }
-  generatePolicy("undefined", "Deny", event.methodArn);
+  return generatePolicy("undefined", "Deny", event.methodArn);
 };
 
 const generatePolicy = function (principalId, effect, resource) {
